@@ -1,6 +1,6 @@
 //> using scala "3.2.1"
 //> using plugin "org.polyvariant:::better-tostring:0.3.17"
-//> using lib "com.monovore::decline-effect::2.3.1"
+//> using lib "com.monovore::decline-effect::2.4.1"
 //> using lib "org.typelevel::cats-effect::3.3.14"
 //> using lib "co.fs2::fs2-io::3.3.0"
 //> using lib "com.lihaoyi::os-lib:0.8.1"
@@ -33,12 +33,12 @@ object FixTimezone extends CommandIOApp("fix-timezone", "Fix timezone"):
     .map(fixPath(_).as(ExitCode.Success))
 
   def hasGPS(path: Path): IO[Boolean] = IO.interruptibleMany {
-    s"exiftool $path".!!.contains("GPS")
+    s"exiftool '$path'".!!.contains("GPS")
   }
 
   def shiftTimezone(path: Path): IO[Unit] =
     IO.interruptibleMany {
-      s"jhead -ta+1 $path".!!
+      s"jhead -ta+1 '$path'".!!
     }.void
 
   def fixPath(path: Path): IO[Unit] = {
