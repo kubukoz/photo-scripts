@@ -1,26 +1,23 @@
-//> using scala "3.2.1"
+//> using scala "3.6.3"
 //> using plugin "org.polyvariant:::better-tostring:0.3.17"
-//> using lib "com.monovore::decline-effect::2.4.1"
-//> using lib "org.typelevel::cats-effect::3.3.14"
-//> using lib "co.fs2::fs2-io::3.3.0"
-//> using lib "com.lihaoyi::os-lib:0.8.1"
+//> using dep "com.monovore::decline-effect::2.4.1"
+//> using dep "org.typelevel::cats-effect::3.3.14"
+//> using dep "co.fs2::fs2-io::3.3.0"
+//> using dep "com.lihaoyi::os-lib:0.8.1"
+//> using option -Wunused:all
 import cats.effect.ExitCode
 import cats.effect.IO
-import cats.effect.IOApp
-import cats.implicits._
+import cats.implicits.*
 import com.monovore.decline.Argument
 import com.monovore.decline.CommandApp
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
 import fs2.io.file.Files
 import fs2.io.file.Path
-import sys.process._
+import sys.process.*
 
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
 
 given Argument[Path] = Argument[java.nio.file.Path].map(Path.fromNioPath(_))
 
@@ -38,7 +35,7 @@ object FixTimezone extends CommandIOApp("fix-timezone", "Fix timezone"):
 
   def shiftTimezone(path: Path): IO[Unit] =
     IO.interruptibleMany {
-      s"jhead -ta+1 '$path'".!!
+      s"jhead -ta-1 '$path'".!!
     }.void
 
   def fixPath(path: Path): IO[Unit] = {
@@ -50,7 +47,7 @@ object FixTimezone extends CommandIOApp("fix-timezone", "Fix timezone"):
       .drain ++
       Files[IO]
         .list(path)
-        .evalFilterNotAsync(maxConcurrent = 10)(hasGPS)
+        // .evalFilterNotAsync(maxConcurrent = 10)(hasGPS)
         .evalMap(p => shiftTimezone(p).as(p))
         .debug("Fixed " + _)
   }.compile.drain
@@ -86,11 +83,14 @@ object SetTimezoneBooth
     Opts.argument[os.FilePath]("directory").map { base =>
       os.list(base.resolveFrom(os.pwd)).foreach { file =>
         val filename = file.last
-        val theDate = parseDate(file.baseName)
-        // set modified time
-        os.mtime.set(file, theDate.toInstant(ZoneOffset.ofHours(1)).toEpochMilli())
-        // set exif dates to file dates
-        os.proc("jhead", "-dsft", file).call().exitCode
+        if filename.startsWith(".") then ()
+        else {
+          val theDate = parseDate(file.baseName)
+          // set modified time
+          os.mtime.set(file, theDate.toInstant(ZoneOffset.ofHours(1)).toEpochMilli())
+          // set exif dates to file dates
+          os.proc("jhead", "-dsft", file).call().exitCode
+        }
       }
     },
   )
